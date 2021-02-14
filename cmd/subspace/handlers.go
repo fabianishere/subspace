@@ -10,6 +10,7 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	"golang.org/x/crypto/bcrypt"
+	"github.com/crewjam/saml/samlsp"
 
 	qrcode "github.com/skip2/go-qrcode"
 )
@@ -29,12 +30,20 @@ func getEnv(key, fallback string) string {
 }
 
 func ssoHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	if token := samlSP.GetAuthorizationToken(r); token != nil {
+	session, err := samlSP.Session.GetSession(r)
+	if session != nil {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
+
 	logger.Debugf("SSO: require account handler")
-	samlSP.RequireAccountHandler(w, r)
+
+	if err == samlsp.ErrNoSession {
+		samlSP.HandleStartAuthFlow(w, r)
+		return
+	}
+
+	samlSP.OnError(w, r, err)
 }
 
 func samlHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {

@@ -374,10 +374,12 @@ func configureSAML() error {
 	}
 
 	newsp, err := samlsp.New(samlsp.Options{
+		EntityID:          "subspace",
 		URL:               rootURL,
 		Key:               keyPair.PrivateKey.(*rsa.PrivateKey),
 		Certificate:       keyPair.Leaf,
 		IDPMetadata:       entity,
+		SignRequest:       true,
 		CookieName:        SessionCookieNameSSO,
 		CookieDomain:      httpHost, // TODO: this will break if using a custom domain.
 		CookieSecure:      !httpInsecure,

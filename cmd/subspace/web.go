@@ -190,10 +190,11 @@ func WebHandler(h func(*Web), section string) httprouter.Handle {
 
 		// Needs a new session.
 		if samlSP != nil {
-			if token := samlSP.GetAuthorizationToken(r); token != nil {
-				r = r.WithContext(samlsp.WithToken(r.Context(), token))
-
-				email := token.StandardClaims.Subject
+			session, err := samlSP.Session.GetSession(r)
+			if session != nil {
+				r = r.WithContext(samlsp.ContextWithSession(r.Context(), session))
+				jwtSession := session.(samlsp.JWTSessionClaims)
+				email := jwtSession.StandardClaims.Subject
 				if email == "" {
 					Error(w, fmt.Errorf("SAML token missing email"))
 					return
@@ -225,10 +226,15 @@ func WebHandler(h func(*Web), section string) httprouter.Handle {
 				h(web)
 				return
 			}
-		}
 
-		logger.Warnf("auth: sign in required")
-		web.Redirect("/signin")
+			if err == samlsp.ErrNoSession {
+				logger.Warnf("auth: sign in required")
+				web.Redirect("/signin")
+				return
+			}
+
+			samlSP.OnError(w, r, err)
+		}
 	}
 }
 
